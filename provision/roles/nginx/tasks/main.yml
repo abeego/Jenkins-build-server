@@ -1,0 +1,17 @@
+---
+- name: Installing nginx with all dependencies
+  apt: name={{ item }} state=latest update_cache=yes cache_valid_time=3600
+  with_items: '{{ nginx_packages }}'
+
+- name: Remove default nginx configuration
+  file: path=/etc/nginx/sites-enabled/default state=absent
+  when: force_nginx == true
+
+- name: Setup configuration for proxy
+  template: src={{ config_file }} dest=/etc/nginx/sites-available/{{ site_name }} owner=root group=root mode=0644
+  when: force_nginx == true
+
+- name: Site activation (Setup symlink for nginx config file)
+  file: src=/etc/nginx/sites-available/{{ site_name }} dest=/etc/nginx/sites-enabled/{{ site_name }} state=link owner=root group=root
+  when: force_nginx == true
+  notify: Restarting Nginx service

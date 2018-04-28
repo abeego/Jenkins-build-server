@@ -1,0 +1,6 @@
+[aws]
+# <AWS INSTANCE PUBLIC IP ADDRESS>
+
+[aws:vars]
+#ansible_ssh_private_key=< /PATH/TO/ENCRIPTED_FILE.pem >
+#ansible_ssh_user=< INSTANCE USER >
