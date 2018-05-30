@@ -1,10 +1,36 @@
 ---
+  # Allocate swap memory
+- name: Set swap_file variable
+  set_fact: swap_file={{ swap_file_path }}
+
+- name: Check if swap file exists
+  stat: path={{ swap_file }}
+  register: swap_file_check
+
+- name: Create swap file
+  command: fallocate -l {{ swap_file_size }} {{ swap_file }}
+  when: not swap_file_check.stat.exists
+
+- name: Change swap file permissions
+  file: path={{swap_file}} owner=root group=root mode=0600
+
+- name: Format swap file
+  command: "mkswap {{swap_file}}"
+  when: not swap_file_check.stat.exists
+
+- name: Write swap entry in fstab
+  mount: name=none src={{swap_file}} fstype=swap opts=sw passno=0 dump=0 state=present
+
+- name: Turn on swap
+  command: swapon -a
+  when: not swap_file_check.stat.exists
+
+- name: Set swappiness
+  sysctl: name=vm.swappiness value={{ swappiness }}
+
+  # Installing Java version 8  
 - name: Add Java8 repo to apt
   apt_repository: repo='ppa:openjdk-r/ppa'
-  tags:
-    - install
-  become: yes
-  become_method: sudo
 
 - name: Add WebUpd8 apt repo
   apt_repository: repo='ppa:webupd8team/java'
@@ -24,3 +50,42 @@
 - name: Installing common packages on base system
   apt: name={{ item }} state=latest update_cache=yes cache_valid_time=3600
   with_items: '{{ common_packages }}'
+
+# Update Python version
+- name: Add key for ppa python repository
+  apt_key: keyserver=keyserver.ubuntu.com id=DB82666C state=present
+
+- name: Add ppa python repository
+  apt_repository: repo='deb http://ppa.launchpad.net/fkrull/deadsnakes-python2.7/ubuntu {{ ansible_distribution_release }} main' state=present update_cache=yes
+
+- name: Ensure python2.7 latest  is installed
+  apt: pkg=python2.7 state=latest install_recommends=no
+
+- name: Installing pip
+  apt: name=python-pip state=present
+
+# Installing docker and docker-compose
+- name: Installing docker dependencies
+  apt: name={{ item }}
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+    - software-properties-common
+
+- name: Add docker repo apt key
+  apt_key: url='https://download.docker.com/linux/ubuntu/gpg' id='9DC858229FC7DD38854AE2D88D81803C0EBFCD88' state=present 
+  register: add_repository_key 
+  ignore_errors: true
+
+- name: Add docker repository
+  apt_repository: repo='deb [arch=amd64] https://download.docker.com/linux/ubuntu trusty stable' state=present update_cache=yes
+
+- name: Installing docker engine
+  apt: name=docker-ce state=present
+
+- name: Enable docker systemd service
+  service: name=docker state=started enabled=yes
+
+- name: Install docker-compose
+  pip: name=docker-compose state=present state=present
+

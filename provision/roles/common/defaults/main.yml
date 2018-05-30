@@ -4,3 +4,6 @@ common_packages:
   - curl
   - vim
   - default-jre
+swap_file_path: /swapfile
+swap_file_size: 2G
+swappiness: 10
